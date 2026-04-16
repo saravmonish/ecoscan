@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Data and runs (generated, too large for git)
+data/
+runs/
+
+# Outputs (generated)
+outputs/
+
+# macOS
+.DS_Store
+
+# Virtual environments
+.venv/
+venv/
+env/
