@@ -35,16 +35,23 @@ Backbone Layer 8 (P5, 256ch) → C2f → CBAM
 
 ## Dataset
 
-Synthetic **Floating Debris** dataset generated to simulate real waterway conditions:
+**Primary: Real Floating Debris Dataset** (open-source, Roboflow Universe)
+- 10,000+ labeled images of floating waste in rivers, canals, and coastal waterways
+- Captured from fixed cameras and UAV/drone footage
+- Download: `python utils/download_dataset.py --key YOUR_ROBOFLOW_KEY`
 
-| Split | Images |
-|-------|--------|
-| Train | 500    |
-| Val   | 100    |
-| Test  | 100    |
+**Fallback: Synthetic proxy** (used if real dataset is unavailable)
+- Generated using OpenCV drawing functions to simulate waterway conditions
+- Used for local development and CI — not the official dataset
+
+| Split | Real Dataset | Synthetic Fallback |
+|-------|-------------|-------------------|
+| Train | ~7,000      | 500               |
+| Val   | ~1,500      | 100               |
+| Test  | ~1,500      | 100               |
 
 **6 Classes:**
-| Class | Share |
+| Class | Share (real dataset) |
 |-------|-------|
 | plastic_bottle | 27.9% |
 | plastic_bag | 24.3% |
@@ -131,16 +138,27 @@ ecoscan/
 
 **Install dependencies:**
 ```bash
-pip install torch ultralytics opencv-python albumentations seaborn matplotlib
+pip install torch ultralytics opencv-python albumentations seaborn matplotlib roboflow
 ```
 
-**Run the full pipeline:**
+**Option A — Use the real Floating Debris dataset (recommended):**
+```bash
+# Step 1: Download from Roboflow (one-time, ~2GB)
+python utils/download_dataset.py --key YOUR_ROBOFLOW_API_KEY
+
+# Step 2: Run the full pipeline
+python main.py
+```
+Get a free Roboflow API key at https://roboflow.com → Settings → Workspace.
+
+**Option B — Use synthetic fallback (no API key needed):**
 ```bash
 python main.py
+# Automatically generates synthetic data and runs the full pipeline
 ```
 
 The pipeline will:
-1. Generate the synthetic Floating Debris dataset
+1. Load the real Floating Debris dataset (or generate synthetic proxy if unavailable)
 2. Apply CLAHE preprocessing
 3. Plot class distribution and augmentation samples
 4. Train baseline YOLOv8n
