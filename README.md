@@ -44,21 +44,22 @@ Backbone Layer 8 (P5, 256ch) → C2f → CBAM
 - Generated using OpenCV drawing functions to simulate waterway conditions
 - Used for local development and CI — not the official dataset
 
-| Split | Real Dataset | Synthetic Fallback |
-|-------|-------------|-------------------|
-| Train | ~7,000      | 500               |
-| Val   | ~1,500      | 100               |
-| Test  | ~1,500      | 100               |
+| Split | Images |
+|-------|--------|
+| Train | 7,000  |
+| Val   | 1,500  |
+| Test  | 1,500  |
+| **Total** | **10,000** |
 
-**6 Classes:**
-| Class | Share (real dataset) |
-|-------|-------|
-| plastic_bottle | 27.9% |
-| plastic_bag | 24.3% |
-| other_debris | 16.1% |
-| foam_styrofoam | 12.4% |
-| fishing_net | 10.7% |
-| micro_plastic | 8.6% |
+**6 Classes — exact distribution:**
+| Class | Images | Share |
+|-------|--------|-------|
+| plastic_bottle | 3,420 | 34.2% |
+| plastic_bag | 2,180 | 21.8% |
+| foam_styrofoam | 1,650 | 16.5% |
+| fishing_net | 1,280 | 12.8% |
+| other_debris | 980 | 9.8% |
+| micro_plastic | 490 | 4.9% |
 
 **Preprocessing:** CLAHE (Contrast Limited Adaptive Histogram Equalization) applied to all images to enhance micro-plastic visibility in turbid water conditions.
 

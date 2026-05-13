@@ -50,20 +50,24 @@ DATA_DIR = os.path.join(PROJECT_DIR, "data", "floating_debris")
 OUTPUT_DIR = os.path.join(PROJECT_DIR, "outputs")
 RUNS_DIR = os.path.join(PROJECT_DIR, "runs")
 
-# Training config (reduced for demo — paper uses 150 epochs, 10k+ images)
-DEMO_MODE = False  # Set False for full training
+# ── Dataset configuration — matches Assignment 2 PDF exactly ─────────────────
+# Total 10,000 images with exact class distribution:
+#   plastic_bottle: 3,420 | plastic_bag: 2,180 | foam_styrofoam: 1,650
+#   fishing_net:    1,280 | other_debris:   980 | micro_plastic:    490
+# Split: 7,000 train | 1,500 val | 1,500 test
+DEMO_MODE = False   # True = 700 images / 15 epochs for quick testing
 if DEMO_MODE:
-    N_TRAIN = 500
-    N_VAL = 100
-    N_TEST = 100
-    EPOCHS = 15
+    N_TRAIN = 490     # Scaled-down but same proportions
+    N_VAL   = 105
+    N_TEST  = 105
+    EPOCHS  = 15
     BATCH_SIZE = 16
-    IMG_SIZE = 640
+    IMG_SIZE   = 640
 else:
-    N_TRAIN = 7000
-    N_VAL = 1500
-    N_TEST = 1500
-    EPOCHS = 150
+    N_TRAIN = 7000    # Full 10,000-image dataset as per PDF
+    N_VAL   = 1500
+    N_TEST  = 1500
+    EPOCHS  = 150
     BATCH_SIZE = 16
     IMG_SIZE = 640
 

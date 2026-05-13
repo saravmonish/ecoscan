@@ -18,10 +18,14 @@ CLASS_NAMES = [
     "fishing_net", "other_debris", "micro_plastic"
 ]
 
-# Class distribution matching the paper: macro ~56%, micro ~4.9%
-CLASS_WEIGHTS = [0.22, 0.18, 0.10, 0.08, 0.12, 0.049]
-# Normalize remaining to sum to ~1 (rest is multi-object images)
-CLASS_WEIGHTS = [w / sum(CLASS_WEIGHTS) for w in CLASS_WEIGHTS]
+# ── Exact class distribution from the assignment PDF ─────────────────────────
+# Total 10,000 images: 7,000 train | 1,500 val | 1,500 test
+# Each number = images where that class is the PRIMARY object
+PDF_CLASS_COUNTS = [3420, 2180, 1650, 1280, 980, 490]   # sums to 10,000
+
+# Weights (used only when generating a random split, not exact counts)
+CLASS_WEIGHTS = [c / sum(PDF_CLASS_COUNTS) for c in PDF_CLASS_COUNTS]
+# → [0.342, 0.218, 0.165, 0.128, 0.098, 0.049]
 
 
 def generate_water_background(size=640):
@@ -287,40 +291,118 @@ def generate_single_image(img_size=640):
     return img, annotations
 
 
-def generate_dataset(base_dir, n_train=800, n_val=150, n_test=150, img_size=640):
+def _split_class_counts(total_counts, n_train, n_val, n_test):
     """
-    Generate complete dataset in YOLO format.
-    Reduced sizes for demo (paper uses 10k+ images).
+    Distribute per-class image counts across train/val/test splits
+    so that:
+      - train gets floor(count * train_ratio) images per class
+      - val   gets floor(count * val_ratio)
+      - test  gets the remainder (so total is exact)
+    Returns dict: {"train": [list of 6], "val": [...], "test": [...]}
+    """
+    total = sum(total_counts)
+    train_r = n_train / total
+    val_r   = n_val   / total
+
+    split_counts = {"train": [], "val": [], "test": []}
+    for c in total_counts:
+        tr = int(c * train_r)
+        vl = int(c * val_r)
+        te = c - tr - vl          # remainder goes to test (keeps total exact)
+        split_counts["train"].append(tr)
+        split_counts["val"].append(vl)
+        split_counts["test"].append(te)
+
+    return split_counts
+
+
+def generate_image_with_primary_class(primary_class_id, img_size=640):
+    """
+    Generate one image that is guaranteed to contain at least one
+    object of `primary_class_id` plus 0–3 random secondary objects.
+    Returns (img, annotations).
+    """
+    img = generate_water_background(img_size)
+    annotations = []
+
+    # Primary object (guaranteed)
+    bbox = generate_bbox(img_size, primary_class_id)
+    DRAW_FUNCTIONS[primary_class_id](img, bbox)
+    x, y, w, h = bbox
+    annotations.append(
+        f"{primary_class_id} {(x + w / 2) / img_size:.6f} "
+        f"{(y + h / 2) / img_size:.6f} "
+        f"{w / img_size:.6f} {h / img_size:.6f}"
+    )
+
+    # 0–3 random secondary objects
+    n_extra = random.randint(0, 3)
+    for _ in range(n_extra):
+        class_id = random.choices(range(6), weights=CLASS_WEIGHTS, k=1)[0]
+        bbox2 = generate_bbox(img_size, class_id)
+        DRAW_FUNCTIONS[class_id](img, bbox2)
+        x2, y2, w2, h2 = bbox2
+        annotations.append(
+            f"{class_id} {(x2 + w2 / 2) / img_size:.6f} "
+            f"{(y2 + h2 / 2) / img_size:.6f} "
+            f"{w2 / img_size:.6f} {h2 / img_size:.6f}"
+        )
+
+    return img, annotations
+
+
+def generate_dataset(base_dir, n_train=7000, n_val=1500, n_test=1500, img_size=640):
+    """
+    Generate Floating Debris dataset in YOLO format with EXACT class distribution
+    matching the assignment PDF:
+        plastic_bottle  : 3,420 images
+        plastic_bag     : 2,180 images
+        foam_styrofoam  : 1,650 images
+        fishing_net     : 1,280 images
+        other_debris    :   980 images
+        micro_plastic   :   490 images
+        ─────────────────────────────
+        Total           : 10,000 images  (7,000 train | 1,500 val | 1,500 test)
+
+    Each image has one guaranteed primary-class object plus 0–3 secondary objects.
     """
     base_dir = Path(base_dir)
 
-    splits = {
-        "train": n_train,
-        "val": n_val,
-        "test": n_test,
-    }
+    total = n_train + n_val + n_test   # should be 10,000
+    # Scale PDF counts if a different total is requested
+    scale = total / sum(PDF_CLASS_COUNTS)
+    scaled_counts = [max(1, round(c * scale)) for c in PDF_CLASS_COUNTS]
+    # Adjust last class so total stays exact
+    diff = total - sum(scaled_counts)
+    scaled_counts[-1] += diff
 
-    for split, n_images in splits.items():
+    split_counts = _split_class_counts(scaled_counts, n_train, n_val, n_test)
+
+    print(f"\nTarget class distribution (total {total} images):")
+    for i, name in enumerate(CLASS_NAMES):
+        print(f"  {name:18s}: {scaled_counts[i]:5d}  "
+              f"(train={split_counts['train'][i]}, "
+              f"val={split_counts['val'][i]}, "
+              f"test={split_counts['test'][i]})")
+
+    for split in ["train", "val", "test"]:
         img_dir = base_dir / split / "images"
         lbl_dir = base_dir / split / "labels"
         img_dir.mkdir(parents=True, exist_ok=True)
         lbl_dir.mkdir(parents=True, exist_ok=True)
 
-        class_counts = {i: 0 for i in range(6)}
+        # Build the ordered list of primary classes for this split
+        primary_classes = []
+        for class_id, count in enumerate(split_counts[split]):
+            primary_classes.extend([class_id] * count)
+        random.shuffle(primary_classes)   # random order within the split
 
-        print(f"Generating {split} set ({n_images} images)...")
-        for i in range(n_images):
-            img, annotations = generate_single_image(img_size)
+        annotation_counts = {i: 0 for i in range(6)}
+        n_images = len(primary_classes)
+        print(f"\nGenerating {split} set ({n_images} images)...")
 
-            # Oversample micro-plastics to reach ~12% as described in paper
-            if split == "train" and random.random() < 0.15:
-                bbox = generate_bbox(img_size, 5)
-                draw_micro_plastic(img, bbox)
-                x, y, w, h = bbox
-                annotations.append(
-                    f"5 {(x + w / 2) / img_size:.6f} {(y + h / 2) / img_size:.6f} "
-                    f"{w / img_size:.6f} {h / img_size:.6f}"
-                )
+        for i, primary_class in enumerate(primary_classes):
+            img, annotations = generate_image_with_primary_class(primary_class, img_size)
 
             fname = f"{split}_{i:05d}"
             cv2.imwrite(str(img_dir / f"{fname}.jpg"), img)
@@ -329,16 +411,20 @@ def generate_dataset(base_dir, n_train=800, n_val=150, n_test=150, img_size=640)
 
             for ann in annotations:
                 cid = int(ann.split()[0])
-                class_counts[cid] += 1
+                annotation_counts[cid] += 1
 
-        print(f"  {split} class distribution: {class_counts}")
+            if (i + 1) % 500 == 0:
+                print(f"  [{i + 1}/{n_images}] images generated...")
+
+        print(f"  Done. Primary-class image counts: "
+              f"{ {CLASS_NAMES[k]: split_counts[split][k] for k in range(6)} }")
 
     # Create YOLO dataset YAML
     yaml_content = {
         "path": str(base_dir.resolve()),
         "train": "train/images",
-        "val": "val/images",
-        "test": "test/images",
+        "val":   "val/images",
+        "test":  "test/images",
         "names": {i: name for i, name in enumerate(CLASS_NAMES)},
         "nc": 6,
     }
