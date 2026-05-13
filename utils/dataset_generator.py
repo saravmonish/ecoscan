@@ -404,6 +404,17 @@ def generate_dataset(base_dir, n_train=7000, n_val=1500, n_test=1500, img_size=6
         for i, primary_class in enumerate(primary_classes):
             img, annotations = generate_image_with_primary_class(primary_class, img_size)
 
+            # PDF requirement: oversample micro-plastics in training until ~12% of annotations
+            # Add an extra micro-plastic object to ~15% of training images (any class)
+            if split == "train" and random.random() < 0.15:
+                bbox = generate_bbox(img_size, 5)   # class 5 = micro_plastic
+                draw_micro_plastic(img, bbox)
+                x, y, w, h = bbox
+                annotations.append(
+                    f"5 {(x + w / 2) / img_size:.6f} {(y + h / 2) / img_size:.6f} "
+                    f"{w / img_size:.6f} {h / img_size:.6f}"
+                )
+
             fname = f"{split}_{i:05d}"
             cv2.imwrite(str(img_dir / f"{fname}.jpg"), img)
             with open(lbl_dir / f"{fname}.txt", "w") as f:
