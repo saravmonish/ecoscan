@@ -185,7 +185,10 @@ def plot_per_class_metrics(results_dict, output_dir):
 
     for ax, metric_name in zip(axes, ["Precision", "Recall", "F1"]):
         for i, (model_name, metrics) in enumerate(results_dict.items()):
-            vals = metrics.get(metric_name, [0] * 6)
+            vals = list(metrics.get(metric_name, [0] * 6))
+            # Pad to 6 if fewer classes were detected in this split
+            vals = vals + [0] * (6 - len(vals))
+            vals = vals[:6]
             offset = -width / 2 + i * width
             color = "#2196F3" if "Baseline" in model_name else "#FF5722"
             bars = ax.bar(x + offset, vals, width, label=model_name, color=color, alpha=0.85)
