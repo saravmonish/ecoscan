@@ -47,6 +47,8 @@ CLASS_MAP = {
     "beverage_bottle":           0,
     "trash_bottle":              0,
     "plastic_bottles":           0,
+    "trash_cup":                 0,  # cups/containers ≈ bottles
+    "trash_container":           0,  # rigid containers ≈ bottles
 
     # plastic bag variants
     "plastic_bag":               1,
@@ -55,6 +57,8 @@ CLASS_MAP = {
     "polythene":                 1,
     "trash_bag":                 1,
     "polythene_bag":             1,
+    "trash_snack_wrapper":       1,  # wrappers ≈ plastic bag
+    "trash_clothing":            1,  # clothing/fabric ≈ soft plastic
 
     # foam / styrofoam variants
     "foam":                      2,
@@ -80,6 +84,8 @@ CLASS_MAP = {
     "microplastics":             5,
 
     # everything else → other_debris (4) by default (not listed here)
+    # (animal_*, plant, rov, trash_branch, trash_can, trash_pipe,
+    #  trash_unknown_instance, trash_wreckage all fall through to 4)
 }
 
 
