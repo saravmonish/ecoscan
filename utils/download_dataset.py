@@ -268,6 +268,143 @@ def _process_download(base_dir, raw_dir):
     return final_yaml
 
 
+def merge_datasets(base_dir, api_key=None):
+    """
+    Download ALL datasets in DATASETS and merge into one combined dataset.
+    Each dataset is remapped to our 6-class taxonomy before merging.
+    Filenames are prefixed with ds0_, ds1_, ds2_ to avoid collisions.
+
+    Args:
+        base_dir (str): Directory to save the merged dataset
+        api_key  (str): Roboflow API key
+
+    Returns:
+        str: Path to dataset.yaml, or None on failure
+    """
+    try:
+        from roboflow import Roboflow
+    except ImportError:
+        os.system("pip install roboflow -q")
+        from roboflow import Roboflow
+
+    if api_key is None:
+        api_key = os.environ.get("ROBOFLOW_API_KEY")
+    if not api_key:
+        _print_key_instructions()
+        return None
+
+    base_dir = Path(base_dir)
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create final split dirs
+    for split in ["train", "val", "test"]:
+        (base_dir / split / "images").mkdir(parents=True, exist_ok=True)
+        (base_dir / split / "labels").mkdir(parents=True, exist_ok=True)
+
+    rf = Roboflow(api_key=api_key)
+    total_counts = {"train": 0, "val": 0, "test": 0}
+
+    for ds_idx, ds in enumerate(DATASETS):
+        print(f"\n{'='*55}")
+        print(f"  [{ds_idx+1}/{len(DATASETS)}] {ds['name']}  ({ds['images']} images)")
+        print(f"{'='*55}")
+
+        raw_dir = base_dir / f"_raw_{ds_idx}"
+        try:
+            project = rf.workspace(ds["workspace"]).project(ds["project"])
+            project.version(ds["version"]).download("yolov8", location=str(raw_dir))
+        except Exception as e:
+            print(f"  ❌ Download failed: {e} — skipping.")
+            shutil.rmtree(raw_dir, ignore_errors=True)
+            continue
+
+        # Find yaml
+        yaml_files = list(raw_dir.rglob("data.yaml")) + list(raw_dir.rglob("dataset.yaml"))
+        if not yaml_files:
+            print("  ❌ No yaml found — skipping.")
+            shutil.rmtree(raw_dir, ignore_errors=True)
+            continue
+
+        src_yaml     = yaml_files[0]
+        dataset_root = src_yaml.parent
+
+        with open(src_yaml) as f:
+            cfg = yaml.safe_load(f)
+
+        raw_names = cfg.get("names", [])
+        if isinstance(raw_names, list):
+            raw_names = {i: n for i, n in enumerate(raw_names)}
+        elif not isinstance(raw_names, dict):
+            raw_names = {}
+
+        print(f"  Classes ({len(raw_names)}): {list(raw_names.values())[:8]}{'...' if len(raw_names) > 8 else ''}")
+
+        # Build id_map
+        id_map = {}
+        for old_id, name in raw_names.items():
+            key = name.lower().replace(" ", "_").replace("-", "_")
+            new_id = CLASS_MAP.get(key, 4)
+            id_map[int(old_id)] = new_id
+
+        # Copy images + remapped labels into final dirs
+        for src_split, dst_split in [("train", "train"), ("valid", "val"), ("test", "test")]:
+            src_img = dataset_root / src_split / "images"
+            src_lbl = dataset_root / src_split / "labels"
+            dst_img = base_dir / dst_split / "images"
+            dst_lbl = base_dir / dst_split / "labels"
+
+            if not src_img.exists():
+                continue
+
+            count = 0
+            for img in src_img.glob("*"):
+                new_stem     = f"ds{ds_idx}_{img.stem}"
+                new_img_name = f"ds{ds_idx}_{img.name}"
+                shutil.copy2(img, dst_img / new_img_name)
+
+                lbl = src_lbl / (img.stem + ".txt")
+                if lbl.exists():
+                    lines = lbl.read_text().strip().splitlines()
+                    new_lines = []
+                    for line in lines:
+                        parts = line.split()
+                        if not parts:
+                            continue
+                        new_id = id_map.get(int(parts[0]), 4)
+                        new_lines.append(f"{new_id} " + " ".join(parts[1:]))
+                    (dst_lbl / (new_stem + ".txt")).write_text("\n".join(new_lines))
+                else:
+                    (dst_lbl / (new_stem + ".txt")).write_text("")
+                count += 1
+
+            total_counts[dst_split] += count
+            print(f"  {dst_split:5s}: +{count} images")
+
+        shutil.rmtree(raw_dir, ignore_errors=True)
+
+    # Write final dataset.yaml
+    final_yaml = base_dir / "dataset.yaml"
+    final_cfg = {
+        "path":  str(base_dir.resolve()),
+        "train": "train/images",
+        "val":   "val/images",
+        "test":  "test/images",
+        "nc":    6,
+        "names": {i: n for i, n in enumerate(OUR_CLASSES)},
+    }
+    with open(final_yaml, "w") as f:
+        yaml.dump(final_cfg, f, default_flow_style=False)
+
+    print(f"\n{'='*55}")
+    print(f"  ✅ MERGED DATASET READY")
+    for split, count in total_counts.items():
+        print(f"     {split:5s}: {count} images")
+    print(f"  YAML: {final_yaml}")
+    print(f"{'='*55}")
+
+    return str(final_yaml)
+
+
 def check_dataset_exists(base_dir):
     """Return True if a real (non-synthetic) dataset already exists."""
     base_dir  = Path(base_dir)
