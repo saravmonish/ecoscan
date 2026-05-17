@@ -41,40 +41,51 @@ OUR_CLASSES = [
 # Anything not listed here → other_debris (4).
 CLASS_MAP = {
     # plastic bottle variants
-    "plastic_bottle":            0,
-    "bottle":                    0,
-    "plastic_beverage_bottle":   0,
-    "beverage_bottle":           0,
-    "trash_bottle":              0,
-    "plastic_bottles":           0,
-    "trash_cup":                 0,  # cups/containers ≈ bottles
-    "trash_container":           0,  # rigid containers ≈ bottles
+    "plastic_bottle":                     0,
+    "bottle":                             0,
+    "plastic_beverage_bottle":            0,
+    "beverage_bottle":                    0,
+    "trash_bottle":                       0,
+    "plastic_bottles":                    0,
+    "trash_cup":                          0,
+    "trash_container":                    0,
+    "cups":                               0,  # "Cups" dataset
+    "jars":                               0,  # "Jars" dataset
+    "jugs__containers":                   0,  # "Jugs- containers" after normalise
+    "plastic_beverage_bottle_large":      0,  # Plastic Pollution dataset
+    "plastic_beverage_bottle_medium":     0,
+    "plastic_beverage_bottle_small":      0,
+    "straws":                             0,  # rigid plastic straw ≈ bottle fragment
 
     # plastic bag variants
     "plastic_bag":               1,
     "plastic_bags":              1,
     "bag":                       1,
+    "bags":                      1,  # "Bags" dataset
     "polythene":                 1,
     "trash_bag":                 1,
     "polythene_bag":             1,
-    "trash_snack_wrapper":       1,  # wrappers ≈ plastic bag
-    "trash_clothing":            1,  # clothing/fabric ≈ soft plastic
+    "trash_snack_wrapper":       1,
+    "trash_clothing":            1,
+    "soft_food_wrappers":        1,  # "Soft food wrappers" dataset
+    "soft_fragments":            1,  # soft plastic fragments ≈ bags/wrappers
 
     # foam / styrofoam variants
     "foam":                      2,
     "foam_styrofoam":            2,
     "styrofoam":                 2,
-    "foam_fragments":            2,
+    "foam_fragments":            2,  # "Foam fragments" dataset ✓ already works
     "expanded_polystyrene":      2,
-    "trash_tarp":                2,  # tarps/covers ≈ foam/sheet plastic
+    "trash_tarp":                2,
 
     # fishing net / line variants
     "fishing_net":               3,
-    "fishing":                   3,
+    "fishing":                   3,  # "Fishing" dataset ✓ already works
     "net":                       3,
     "fishing_line":              3,
     "trash_net":                 3,
     "plastic_rope_net_pieces":   3,
+    "plastic_rope___net_pieces": 3,  # "Plastic rope - net pieces" after normalise
     "rope":                      3,
     "trash_rope":                3,
 
@@ -84,8 +95,6 @@ CLASS_MAP = {
     "microplastics":             5,
 
     # everything else → other_debris (4) by default (not listed here)
-    # (animal_*, plant, rov, trash_branch, trash_can, trash_pipe,
-    #  trash_unknown_instance, trash_wreckage all fall through to 4)
 }
 
 
